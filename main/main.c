@@ -89,12 +89,17 @@ static void radar_parse(uint8_t *d, int frm_len)
     } else { low_cnt = 0; }
 
     radar_dist  = (radar_state & 1) ? (d[9] | (d[10]<<8)) : ((radar_state & 2) ? (d[12] | (d[13]<<8)) : 0);
-    // 光照过滤: 偶尔的普通帧会返回 0, 保留上次有效值
+    // 光照过滤
+    { static int ll=0; int r=d[tail-4]; if(r>0)ll=r; radar_light=ll; }
+
+    // DEBUG: 打印原始帧字节帮助定位能量偏移
     {
-        static int last_light = 0;
-        int raw = d[tail - 4];
-        if (raw > 0) last_light = raw;
-        radar_light = last_light;
+        static int dc=0;
+        if(++dc%30==0) {
+            char hx[200]=""; char t[8];
+            for(int q=6;q<18&&q<tail;q++){sprintf(t,"%02X ",d[q]);strcat(hx,t);}
+            ESP_LOGI(TAG,"RAW[6..]:%s st=%d mv=%d se=%d",hx,radar_state,radar_mv_en,radar_st_en);
+        }
     }
 }
 

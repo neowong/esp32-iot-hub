@@ -4,203 +4,144 @@
 <title>ESP32 Hub</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
+:root{--bg:#0b0f14;--card:#131820;--border:#1e2733;--text:#a8b4c2;--muted:#5a6778;--accent:#4f9cf7;--green:#2ea44f;--red:#da3633;--orange:#f0883e}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Arial;background:#0d1117;color:#c9d1d9;padding:16px}
-h1{color:#58a6ff;margin-bottom:4px;font-size:20px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-top:12px}
-.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px}
-.card.online{border-color:#238636}.card.offline{border-color:#da3633;opacity:.5}
-.card h3{font-size:14px;margin-bottom:8px;color:#58a6ff}
-.presence{font-size:20px;text-align:center;padding:6px}
-.row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
-.l{color:#8b949e}.v{color:#58a6ff}
-.bar{height:5px;border-radius:2px;overflow:hidden;background:#21262d;margin:2px 0}
-.bar div{height:100%;transition:width .3s}
-.mv-bar div{background:#f78166}.st-bar div{background:#58a6ff}
-canvas{margin-top:8px;max-height:200px}
-.tabs{display:flex;gap:4px;margin:8px 0}
-.tabs button{padding:3px 10px;border:1px solid #30363d;background:#21262d;color:#8b949e;
-  border-radius:4px;cursor:pointer;font-size:11px}
-.tabs button.active{background:#1f6feb;color:#fff;border-color:#1f6feb}
-.offline-msg{text-align:center;color:#8b949e;padding:20px;font-size:13px}
-.summary{color:#8b949e;font-size:11px;margin:8px 0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{max-width:1400px;margin:0 auto;padding:20px}
+header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+h1{font-size:24px;font-weight:600;color:#e6edf3}
+h1 span{color:var(--muted);font-size:14px;font-weight:400;margin-left:8px}
+.stats{display:flex;gap:16px;flex-wrap:wrap}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center;min-width:80px}
+.stat .num{font-size:22px;font-weight:700;color:#e6edf3}
+.stat .label{font-size:11px;color:var(--muted);margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
+.device{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .3s}
+.device.online{border-color:#2ea44f55}.device.offline{border-color:#da363355;opacity:.6}
+.dev-head{padding:14px 16px 0;display:flex;justify-content:space-between;align-items:center}
+.dev-head .name{font-size:15px;font-weight:600;color:#e6edf3;cursor:pointer}
+.dev-head .name:hover{color:var(--accent)}
+.dev-head .meta{font-size:11px;color:var(--muted)}
+.presence{text-align:center;padding:16px 0 8px}
+.presence .dot{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.presence .dot.on{background:var(--green);box-shadow:0 0 12px #2ea44f66}
+.presence .dot.off{background:var(--red)}
+.presence .dot.unknown{background:var(--muted)}
+.presence .txt{font-size:18px;font-weight:600;vertical-align:middle}
+.gauges{padding:0 16px 12px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gauge .label{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:3px}
+.gauge .bar{height:6px;border-radius:3px;background:#1e2733;overflow:hidden}
+.gauge .bar div{height:100%;border-radius:3px;transition:width .3s}
+.gauge .bar .mv{background:var(--orange)}.gauge .bar .st{background:var(--accent)}
+.metrics{padding:0 16px 12px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.metric{text-align:center;padding:6px}
+.metric .val{font-size:16px;font-weight:600;color:#e6edf3}
+.metric .lbl{font-size:10px;color:var(--muted)}
+.tabs{padding:8px 16px;display:flex;gap:4px;align-items:center;border-top:1px solid var(--border)}
+.tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
+.tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
+canvas{margin:0 0 -4px}
+.statusbar{padding:6px 16px;display:flex;gap:12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);cursor:pointer}
+.statusbar span:hover{color:var(--accent)}
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
 </style></head><body>
-<h1>ESP32 Hub</h1>
-<div class="summary">
-  <span id="devcount">0</span> 设备 |
-  <input id="newip" placeholder="添加 IP" style="width:140px;padding:3px 6px;border-radius:3px;border:1px solid #30363d;background:#0d1117;color:#fff;font-size:11px">
-  <button onclick="manage('add')" style="padding:3px 8px;font-size:11px;background:#238636;border:none;color:#fff;border-radius:3px;cursor:pointer">+</button>
-  <button onclick="manage('scan')" style="padding:3px 8px;font-size:11px;background:#21262d;border:1px solid #30363d;color:#fff;border-radius:3px;cursor:pointer">🔍</button>
-  <span id="scanmsg" style="font-size:11px;color:#8b949e"></span>
-</div>
+<div class="app">
+<header>
+  <h1>ESP32 Hub<span>IoT Management Panel</span></h1>
+  <div class="stats">
+    <div class="stat"><div class="num" id="s_total">0</div><div class="label">Total</div></div>
+    <div class="stat"><div class="num" id="s_online" style="color:var(--green)">0</div><div class="label">Online</div></div>
+    <div class="stat"><div class="num" id="s_occupied">0</div><div class="label">Occupied</div></div>
+  </div>
+</header>
 <div class="grid" id="grid"></div>
+<div class="empty" id="empty" style="display:none">📡 No devices connected. Waiting for MQTT data...</div>
+</div>
 
 <script>
-const deviceNames = JSON.parse(localStorage.getItem('esp_names')||'{}');
-const deviceIPs = JSON.parse(localStorage.getItem('esp_ips')||'{}');
-const charts = {};
-let knownDevices = {};
-
-function getName(id){
-  return deviceNames[id] || id;
-}
-function getIP(id){
-  return deviceIPs[id] || '';
-}
-
-function setDeviceName(id, name){
-  if(name) deviceNames[id] = name;
-  else delete deviceNames[id];
-  localStorage.setItem('esp_names', JSON.stringify(deviceNames));
-}
-function setDeviceIP(id, ip){
-  if(ip) deviceIPs[id] = ip;
-  else delete deviceIPs[id];
-  localStorage.setItem('esp_ips', JSON.stringify(deviceIPs));
-}
-
-
+const deviceNames=JSON.parse(localStorage.getItem('esp_names')||'{}');
+const deviceIPs=JSON.parse(localStorage.getItem('esp_ips')||'{}');
+const charts={};let knownDevices={};
+function getName(id){return deviceNames[id]||id}
+function getIP(id){return deviceIPs[id]||''}
 function makeCard(id){
-  return `<div class="card" id="card_${id}">
-    <h3>
-      <span class="devname" id="dname_${id}" title="点击修改名称" onclick="editName('${id}')">📡 ${getName(id)}</span>
-      <span style="font-size:10px;color:#8b949e;cursor:pointer" onclick="editIP('${id}')" title="点击修改IP">
-        <span id="dip_${id}">${getIP(id)||id}</span> ✎
-      </span>
-    </h3>
-    <div class="presence" id="pres_${id}">--</div>
-    <div class="row"><span class="l">运动</span><span class="v" id="mv_${id}">0</span></div>
-    <div class="bar mv-bar"><div id="barm_${id}" style="width:0%"></div></div>
-    <div class="row"><span class="l">微动</span><span class="v" id="se_${id}">0</span></div>
-    <div class="bar st-bar"><div id="bars_${id}" style="width:0%"></div></div>
-    <div class="row"><span class="l">距离</span><span class="v" id="dst_${id}">--</span>
-      <span class="l">光照</span><span class="v" id="lit_${id}">--</span></div>
-    <div class="tabs">
-      <button onclick="loadHistory('${id}',1)" class="active" id="tb1_${id}">1h</button>
-      <button onclick="loadHistory('${id}',6)" id="tb6_${id}">6h</button>
-      <button onclick="loadHistory('${id}',24)" id="tb24_${id}">1d</button>
-      <span style="float:right;color:#8b949e;font-size:11px;padding:3px 0" id="pct_${id}"></span>
-    </div>
-    <canvas id="chart_${id}"></canvas>
-  </div>`;
+  let dn=getName(id),dip=getIP(id)||id;
+  return '<div class="device online" id="card_'+id+'"><div class="dev-head">'
+  +'<span class="name" onclick="editName(\''+id+'\')">📡 '+dn+'</span>'
+  +'<span class="meta" onclick="editIP(\''+id+'\')">'+dip+' ✎</span></div>'
+  +'<div class="presence"><span class="dot unknown" id="dot_'+id+'"></span><span class="txt" id="txt_'+id+'">--</span></div>'
+  +'<div class="gauges">'
+  +'<div class="gauge"><div class="label"><span>Motion</span><span id="gmv_'+id+'">0</span></div><div class="bar"><div class="mv" id="bm_'+id+'" style="width:0%"></div></div></div>'
+  +'<div class="gauge"><div class="label"><span>Static</span><span id="gse_'+id+'">0</span></div><div class="bar"><div class="st" id="bs_'+id+'" style="width:0%"></div></div></div>'
+  +'</div><div class="metrics">'
+  +'<div class="metric"><div class="val" id="md_'+id+'">--</div><div class="lbl">Distance</div></div>'
+  +'<div class="metric"><div class="val" id="ml_'+id+'">--</div><div class="lbl">Light</div></div>'
+  +'<div class="metric"><div class="val" id="mh_'+id+'">--</div><div class="lbl">Heap</div></div>'
+  +'</div><div class="tabs">'
+  +'<button onclick="loadHistory(\''+id+'\',1)" class="active" id="tb1_'+id+'">1h</button>'
+  +'<button onclick="loadHistory(\''+id+'\',6)" id="tb6_'+id+'">6h</button>'
+  +'<button onclick="loadHistory(\''+id+'\',24)" id="tb24_'+id+'">1d</button>'
+  +'<span class="pct" id="pct_'+id+'"></span>'
+  +'</div><canvas id="chart_'+id+'" height="120"></canvas>'
+  +'<div class="statusbar">'
+  +'<span onclick="window.open(\'http://'+dip+'\')">🔗 Open</span>'
+  +'<span onclick="window.open(\'http://'+dip+'/ota\')">⬆ OTA</span></div></div>';
 }
-
-async function poll(){
-  try{
-    let r = await fetch('/api/devices');
-    let devs = await r.json();
-    document.getElementById('devcount').textContent = Object.keys(devs).length;
-
-    for(let[id, d] of Object.entries(devs)){
-      if(!knownDevices[id]){
-        knownDevices[id] = true;
-        document.getElementById('grid').innerHTML += makeCard(id);
-        setTimeout(()=>loadHistory(id,1), 500);
-      }
-      let card = document.getElementById('card_'+id);
-      if(card) card.className = 'card online';
-      document.getElementById('dname_'+id).textContent = '📡 ' + (d.name || getName(id));
-      document.getElementById('dip_'+id).textContent = getIP(id) || (d.name||id);
-      let p = document.getElementById('pres_'+id);
-      p.textContent = d.st>0 ? '🟢 有人' : '🔴 无人';
-      document.getElementById('mv_'+id).textContent = d.mv;
-      document.getElementById('se_'+id).textContent = d.se;
-      document.getElementById('barm_'+id).style.width = Math.min(d.mv,100)+'%';
-      document.getElementById('bars_'+id).style.width = Math.min(d.se,100)+'%';
-      document.getElementById('dst_'+id).textContent = d.dst+'cm';
-      document.getElementById('lit_'+id).textContent = d.lit;
-    }
-
-    // Check for offline devices
-    let now = Date.now()/1000;
-    for(let[id, d] of Object.entries(devs)){
-      if(now - d.ts > 30){
-        let card = document.getElementById('card_'+id);
-        if(card) card.className = 'card offline';
-      }
-    }
-  }catch(e){}
-}
-
-async function loadHistory(id, hours){
-  // Update active tab
-  [1,6,24].forEach(h=>{
-    let btn = document.getElementById('tb'+h+'_'+id);
-    if(btn) btn.className = h===hours ? 'active' : '';
-  });
-
-  try{
-    let r = await fetch('/api/history?device='+id+'&hours='+hours);
-    let rows = await r.json();
-    if(!rows.length) return;
-
-    let labels = rows.map(r=>new Date(r.ts*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}));
-    let mvData = rows.map(r=>r.mv);
-    let seData = rows.map(r=>r.se);
-    let litData = rows.map(r=>r.lit);
-    let presenceData = rows.map(r=>r.st>0?1:0);
-
-    let ctx = document.getElementById('chart_'+id).getContext('2d');
-    if(charts[id]) charts[id].destroy();
-
-    charts[id] = new Chart(ctx, {
-      type:'line',
-      data:{
-        labels,
-        datasets:[
-          {label:'运动',data:mvData,borderColor:'#f78166',borderWidth:1,pointRadius:0,fill:false},
-          {label:'微动',data:seData,borderColor:'#58a6ff',borderWidth:1,pointRadius:0,fill:false},
-          {label:'有人',data:presenceData,borderColor:'#3fb950',backgroundColor:'rgba(63,185,80,0.15)',borderWidth:2,pointRadius:0,fill:true,stepped:true},
-        ]
-      },
-      options:{
-        responsive:true,
-        animation:false,
-        plugins:{legend:{labels:{color:'#8b949e',font:{size:10},boxWidth:12}}},
-        scales:{
-          x:{ticks:{color:'#484f58',font:{size:9},maxTicksLimit:6},grid:{color:'#21262d'}},
-          y:{min:0,max:1,ticks:{color:'#484f58',font:{size:9}},grid:{color:'#21262d'}}
-        }
-      }
-    });
-    // 计算有人占比
-      let on = presenceData.filter(function(v){return v}).length;
-      let pct = presenceData.length ? Math.round(on/presenceData.length*100) : 0;
-      let el = document.getElementById('pct_'+id);
-      if(el) el.textContent = '有人 '+pct+'%';
-    }catch(e){console.error(e)}
-}
-
-
-async function manage(action){
-  let ip = document.getElementById('newip').value.trim();
-  if(action==='add' && ip){
-    await fetch('/api/devices/manage',{method:'POST',body:JSON.stringify({action:'add',ip})});
-    document.getElementById('newip').value='';
-    location.reload();
-  }else if(action==='scan'){
-    document.getElementById('scanmsg').textContent='扫描中...';
-    await fetch('/api/devices/manage',{method:'POST',body:JSON.stringify({action:'scan'})});
-    document.getElementById('scanmsg').textContent='完成!';
-    setTimeout(()=>location.reload(),2000);
-  }
-}
-
-
 function editName(id){
-  let cur = deviceNames[id] || id;
-  let n = prompt('设备名称:', cur);
-  if(n && n!==cur){ setDeviceName(id, n); document.getElementById('dname_'+id).textContent='📡 '+n; }
+  let cur=deviceNames[id]||id;
+  let n=prompt('Rename:',cur===id?'':cur);
+  if(n!==null){let nn=n||id;deviceNames[id]=nn;localStorage.setItem('esp_names',JSON.stringify(deviceNames));document.querySelector('#card_'+id+' .name').textContent='📡 '+nn;}
 }
 function editIP(id){
-  let cur = deviceIPs[id] || '';
-  let n = prompt('设备 IP (用于OTA/直连):', cur);
-  setDeviceIP(id, n);
-  document.getElementById('dip_'+id).textContent = n||id;
+  let cur=deviceIPs[id]||'';
+  let n=prompt('IP:',cur);
+  if(n!==null){deviceIPs[id]=n;localStorage.setItem('esp_ips',JSON.stringify(deviceIPs));document.querySelector('#card_'+id+' .meta').textContent=(n||id)+' ✎';}
 }
-
-setInterval(poll, 1000);
-poll();
-
-</script>
-</body></html>
+async function poll(){
+  try{
+    let r=await fetch('/api/devices');let devs=await r.json();
+    let ids=Object.keys(devs),now=Date.now()/1000,online=0,occupied=0;
+    for(let[id,d] of Object.entries(devs)){
+      if(!knownDevices[id]){knownDevices[id]=true;document.getElementById('grid').innerHTML+=makeCard(id);setTimeout(()=>loadHistory(id,1),500);}
+      if(now-d.ts<30)online++;if(d.st>0)occupied++;
+      let card=document.getElementById('card_'+id);if(!card)continue;
+      card.className='device '+(now-d.ts<30?'online':'offline');
+      let dot=document.getElementById('dot_'+id);dot.className='dot '+(d.st>0?'on':'off');
+      document.getElementById('txt_'+id).textContent=d.st>0?'Occupied':'Vacant';
+      document.getElementById('gmv_'+id).textContent=d.mv;document.getElementById('gse_'+id).textContent=d.se;
+      document.getElementById('bm_'+id).style.width=Math.min(d.mv,100)+'%';
+      document.getElementById('bs_'+id).style.width=Math.min(d.se,100)+'%';
+      document.getElementById('md_'+id).textContent=d.dst+'cm';
+      document.getElementById('ml_'+id).textContent=d.lit;
+      document.getElementById('mh_'+id).textContent=d.heap+'K';
+    }
+    document.getElementById('s_total').textContent=ids.length;
+    document.getElementById('s_online').textContent=online;
+    document.getElementById('s_occupied').textContent=occupied;
+    document.getElementById('empty').style.display=ids.length?'none':'';
+  }catch(e){}
+}
+async function loadHistory(id,hours){
+  [1,6,24].forEach(h=>{let b=document.getElementById('tb'+h+'_'+id);if(b)b.className=h===hours?'active':'';});
+  try{
+    let r=await fetch('/api/history?device='+id+'&hours='+hours);
+    let rows=await r.json();if(!rows.length)return;
+    let labels=rows.map(r=>new Date(r.ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+    let presence=rows.map(r=>r.st>0?1:0);
+    let on=presence.filter(v=>v).length,pct=presence.length?Math.round(on/presence.length*100):0;
+    document.getElementById('pct_'+id).textContent=pct+'% occupied';
+    let ctx=document.getElementById('chart_'+id).getContext('2d');
+    if(charts[id])charts[id].destroy();
+    charts[id]=new Chart(ctx,{type:'bar',
+      data:{labels,datasets:[{label:'Occupied',data:presence,
+        backgroundColor:presence.map(v=>v?'#2ea44f66':'transparent'),
+        borderColor:presence.map(v=>v?'#2ea44f':'transparent'),borderWidth:1,borderRadius:2}]},
+      options:{responsive:true,animation:false,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{x:{ticks:{color:'#5a6778',font:{size:9},maxTicksLimit:8},grid:{display:false}},
+        y:{min:0,max:1,ticks:{callback:v=>v?'On':'Off',color:'#5a6778',font:{size:9}},grid:{display:false}}}}});
+  }catch(e){}
+}
+setInterval(poll,1000);poll();
+</script></body></html>
