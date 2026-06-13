@@ -3,7 +3,6 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ESP32 Hub</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-
 <style>
 :root{--bg:#0b0f14;--card:#131820;--border:#1e2733;--text:#a8b4c2;--muted:#5a6778;--accent:#4f9cf7;--green:#2ea44f;--red:#da3633;--orange:#f0883e}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -33,9 +32,8 @@ h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-
 .tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
 .tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
-.chart-box{height:120px;padding:0 16px 8px}
-
-.occ-bar{height:20px;border-radius:4px;background:#1e2733;overflow:hidden;margin:8px 0 4px}.occ-fill{height:100%;width:0;background:linear-gradient(90deg,#2ea44f,#3fb950);transition:width .5s}.occ-label{font-size:12px;color:var(--muted);text-align:center}</style></head><body>
+.chart-box{height:130px;padding:0 16px 8px}
+</style></head><body>
 <div class="app">
 <header><h1>ESP32 Hub<span>IoT Management Panel</span></h1>
 <div class="stats"><div class="stat"><div class="num" id="s_total">0</div><div class="label">Total</div></div>
@@ -50,91 +48,26 @@ var charts={}, added={};
 
 function addCard(id){
   var n=names[id]||id, ip=ips[id]||id;
-  var h='<div class="device online" id="card_'+id+'">';
-  h+='<div class="dev-head"><span class="name" onclick="editName(\''+id+'\')">📡 '+n+'</span><span class="meta" onclick="editIP(\''+id+'\')">'+ip+' ✎</span></div>';
-  h+='<div class="presence"><span class="dot off" id="dot_'+id+'"></span><span class="txt" id="txt_'+id+'">--</span></div>';
-  h+='<div class="gauges">';
-  h+='<div class="gauge"><div class="lbl"><span>Motion</span><span id="gmv_'+id+'">0</span></div><div class="bar"><div class="mv-bar" id="bm_'+id+'" style="width:0%"></div></div></div>';
-  h+='<div class="gauge"><div class="lbl"><span>Static</span><span id="gse_'+id+'">0</span></div><div class="bar"><div class="st-bar" id="bs_'+id+'" style="width:0%"></div></div></div>';
-  h+='</div><div class="metrics">';
-  h+='<div class="metric"><div class="val" id="md_'+id+'">--</div><div class="lbl">Distance</div></div>';
-  h+='<div class="metric"><div class="val" id="ml_'+id+'">--</div><div class="lbl">Light</div></div>';
-  h+='<div class="metric"><div class="val" id="mh_'+id+'">--</div><div class="lbl">Heap</div></div>';
-  h+='</div><div class="tabs">';
-  h+='<button onclick="loadHist(\''+id+'\',1)" class="active" id="tb1_'+id+'">1h</button>';
-  h+='<button onclick="loadHist(\''+id+'\',6)" id="tb6_'+id+'">6h</button>';
-  h+='<button onclick="loadHist(\''+id+'\',24)" id="tb24_'+id+'">1d</button>';
-  h+='<span class="pct" id="pct_'+id+'"></span></div>';
-  h+='<div class="chart-box"><canvas id="chart_'+id+'"></canvas></div>TYPE html>
-<html lang="zh-CN"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ESP32 Hub</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-
-<style>
-:root{--bg:#0b0f14;--card:#131820;--border:#1e2733;--text:#a8b4c2;--muted:#5a6778;--accent:#4f9cf7;--green:#2ea44f;--red:#da3633;--orange:#f0883e}
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-.app{max-width:1400px;margin:0 auto;padding:20px}
-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;flex-wrap:wrap;gap:12px}
-h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-size:14px;font-weight:400;margin-left:8px}
-.stats{display:flex;gap:16px}.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center;min-width:80px}
-.stat .num{font-size:22px;font-weight:700;color:#e6edf3}.stat .label{font-size:11px;color:var(--muted);margin-top:2px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
-.device{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.device.online{border-color:#2ea44f55}.device.offline{border-color:#da363355;opacity:.6}
-.dev-head{padding:14px 16px 0;display:flex;justify-content:space-between;align-items:center}
-.dev-head .name{font-size:15px;font-weight:600;color:#e6edf3;cursor:pointer}
-.dev-head .name:hover{color:var(--accent)}.dev-head .meta{font-size:11px;color:var(--muted);cursor:pointer}
-.presence{text-align:center;padding:16px 0 8px}
-.presence .dot{display:inline-block;width:14px;height:14px;border-radius:50%;margin-right:8px;vertical-align:middle}
-.presence .dot.on{background:var(--green);box-shadow:0 0 12px #2ea44f66}.presence .dot.off{background:var(--red)}
-.presence .txt{font-size:18px;font-weight:600;vertical-align:middle}
-.gauges{padding:0 16px 12px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.gauge .lbl{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-bottom:3px}
-.gauge .bar{height:6px;border-radius:3px;background:#1e2733;overflow:hidden}
-.gauge .bar div{height:100%;border-radius:3px;transition:width .3s}.gauge .mv-bar{background:var(--orange)}.gauge .st-bar{background:var(--accent)}
-.metrics{padding:0 16px 12px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-.metric{text-align:center;padding:6px}.metric .val{font-size:16px;font-weight:600;color:#e6edf3}.metric .lbl{font-size:10px;color:var(--muted)}
-.tabs{padding:8px 16px;display:flex;gap:4px;align-items:center;border-top:1px solid var(--border)}
-.tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
-.tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
-.tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
-.chart-box{height:120px;padding:0 16px 8px}
-
-.occ-bar{height:20px;border-radius:4px;background:#1e2733;overflow:hidden;margin:8px 0 4px}.occ-fill{height:100%;width:0;background:linear-gradient(90deg,#2ea44f,#3fb950);transition:width .5s}.occ-label{font-size:12px;color:var(--muted);text-align:center}</style></head><body>
-<div class="app">
-<header><h1>ESP32 Hub<span>IoT Management Panel</span></h1>
-<div class="stats"><div class="stat"><div class="num" id="s_total">0</div><div class="label">Total</div></div>
-<div class="stat"><div class="num" id="s_online" style="color:var(--green)">0</div><div class="label">Online</div></div>
-<div class="stat"><div class="num" id="s_occupied">0</div><div class="label">Occupied</div></div></div></header>
-<div class="grid" id="grid"></div>
-</div>
-<script>
-var names=JSON.parse(localStorage.getItem('esp_names')||'{}');
-var ips=JSON.parse(localStorage.getItem('esp_ips')||'{}');
-var charts={}, added={};
-
-function addCard(id){
-  var n=names[id]||id, ip=ips[id]||id;
-  var h='<div class="device online" id="card_'+id+'">';
-  h+='<div class="dev-head"><span class="name" onclick="editName(\''+id+'\')">📡 '+n+'</span><span class="meta" onclick="editIP(\''+id+'\')">'+ip+' ✎</span></div>';
-  h+='<div class="presence"><span class="dot off" id="dot_'+id+'"></span><span class="txt" id="txt_'+id+'">--</span></div>';
-  h+='<div class="gauges">';
-  h+='<div class="gauge"><div class="lbl"><span>Motion</span><span id="gmv_'+id+'">0</span></div><div class="bar"><div class="mv-bar" id="bm_'+id+'" style="width:0%"></div></div></div>';
-  h+='<div class="gauge"><div class="lbl"><span>Static</span><span id="gse_'+id+'">0</span></div><div class="bar"><div class="st-bar" id="bs_'+id+'" style="width:0%"></div></div></div>';
-  h+='</div><div class="metrics">';
-  h+='<div class="metric"><div class="val" id="md_'+id+'">--</div><div class="lbl">Distance</div></div>';
-  h+='<div class="metric"><div class="val" id="ml_'+id+'">--</div><div class="lbl">Light</div></div>';
-  h+='<div class="metric"><div class="val" id="mh_'+id+'">--</div><div class="lbl">Heap</div></div>';
-  h+='</div><div class="tabs">';
-  h+='<button onclick="loadHist(\''+id+'\',1)" class="active" id="tb1_'+id+'">1h</button>';
-  h+='<button onclick="loadHist(\''+id+'\',6)" id="tb6_'+id+'">6h</button>';
-  h+='<button onclick="loadHist(\''+id+'\',24)" id="tb24_'+id+'">1d</button>';
-  h+='<span class="pct" id="pct_'+id+'"></span></div>';
-  h+='<div class="chart-box">REPLACED'+id+'"></div></div><div class="occ-label" id="occl_'+id+'">--</div></div>';
-  h+='</div>';
-  document.getElementById('grid').insertAdjacentHTML('beforeend',h);
+  var h=[];
+  h.push('<div class="device online" id="card_'+id+'">');
+  h.push('<div class="dev-head"><span class="name" onclick="editName(\''+id+'\')">📡 '+n+'</span>');
+  h.push('<span class="meta" onclick="editIP(\''+id+'\')">'+ip+' ✎</span></div>');
+  h.push('<div class="presence"><span class="dot off" id="dot_'+id+'"></span><span class="txt" id="txt_'+id+'">--</span></div>');
+  h.push('<div class="gauges">');
+  h.push('<div class="gauge"><div class="lbl"><span>Motion</span><span id="gmv_'+id+'">0</span></div><div class="bar"><div class="mv-bar" id="bm_'+id+'" style="width:0%"></div></div></div>');
+  h.push('<div class="gauge"><div class="lbl"><span>Static</span><span id="gse_'+id+'">0</span></div><div class="bar"><div class="st-bar" id="bs_'+id+'" style="width:0%"></div></div></div>');
+  h.push('</div><div class="metrics">');
+  h.push('<div class="metric"><div class="val" id="md_'+id+'">--</div><div class="lbl">Distance</div></div>');
+  h.push('<div class="metric"><div class="val" id="ml_'+id+'">--</div><div class="lbl">Light</div></div>');
+  h.push('<div class="metric"><div class="val" id="mh_'+id+'">--</div><div class="lbl">Heap</div></div>');
+  h.push('</div><div class="tabs">');
+  h.push('<button onclick="loadHist(\''+id+'\',1)" class="active" id="tb1_'+id+'">1h</button>');
+  h.push('<button onclick="loadHist(\''+id+'\',6)" id="tb6_'+id+'">6h</button>');
+  h.push('<button onclick="loadHist(\''+id+'\',24)" id="tb24_'+id+'">1d</button>');
+  h.push('<span class="pct" id="pct_'+id+'"></span></div>');
+  h.push('<div class="chart-box"><canvas id="chart_'+id+'"></canvas></div>');
+  h.push('</div>');
+  document.getElementById('grid').insertAdjacentHTML('beforeend',h.join(''));
 }
 
 function editName(id){
@@ -174,12 +107,22 @@ async function loadHist(id,h){
   try{
     var r=await fetch('/api/history?device='+id+'&hours='+h);var rows=await r.json();
     if(!rows.length)return;
-    var presence=rows.map(function(r){return r.st>0?1:0;});
-    var on=0;for(var i=0;i<presence.length;i++){if(presence[i])on++;}var pct=Math.round(on/presence.length*100);document.getElementById('pct_'+id).textContent=pct+'% occupied';var ctx=document.getElementById('chart_'+id).getContext('2d');if(charts[id])charts[id].destroy();var ds={label:'Occ',data:presence,borderColor:'#3fb950',borderWidth:2,pointRadius:0,fill:false,stepped:true};var dO={labels:labels,datasets:[ds]};var xA={ticks:{color:'#888',font:{size:9},maxTicksLimit:6},grid:{color:'#222'}};var yA={min:-0.1,max:1.1,ticks:{stepSize:1,color:'#888',font:{size:9}},grid:{color:'#222'}};var sc={x:xA,y:yA};var pl={legend:{display:false}};var op={responsive:false,animation:false,plugins:pl,scales:sc};var cf={type:'line',data:dO,options:op};charts[id]=new Chart(ctx,cf);
-    var pct=Math.round(on2/presence.length*100);
-    document.getElementById('pct_'+id).textContent=pct+'% occupied';
-    document.getElementById('occ_'+id).style.width=pct+'%';
-    document.getElementById('occl_'+id).textContent=pct+'% of the last '+h+'h';
+    var labels=[];var presence=[];
+    for(var i=0;i<rows.length;i++){labels.push(new Date(rows[i].ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));presence.push(rows[i].st>0?1:0);}
+    var on=0;for(var i=0;i<presence.length;i++){if(presence[i])on++;}
+    document.getElementById('pct_'+id).textContent=Math.round(on/presence.length*100)+'% occupied';
+
+    var ctx=document.getElementById('chart_'+id).getContext('2d');
+    if(charts[id])charts[id].destroy();
+    var ds={label:'Occ',data:presence,borderColor:'#3fb950',borderWidth:2,pointRadius:0,fill:false,stepped:true};
+    var dO={labels:labels,datasets:[ds]};
+    var xA={ticks:{color:'#888',font:{size:9},maxTicksLimit:6},grid:{color:'#222'}};
+    var yA={min:-0.1,max:1.1,ticks:{stepSize:1,color:'#888',font:{size:9}},grid:{color:'#222'}};
+    var sc={x:xA,y:yA};
+    var pl={legend:{display:false}};
+    var op={responsive:false,animation:false,plugins:pl,scales:sc};
+    var cf={type:'line',data:dO,options:op};
+    charts[id]=new Chart(ctx,cf);
   }catch(e){}
 }
 
