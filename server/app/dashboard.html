@@ -32,7 +32,7 @@ h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-
 .tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
 .tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
-.chart-box{height:130px;padding:0 16px 8px}
+.chart-box{height:160px;padding:0 16px 8px}
 </style></head><body>
 <div class="app">
 <header><h1>ESP32 Hub<span>IoT Management Panel</span></h1>
@@ -116,7 +116,7 @@ async function loadHist(id,h){
     if(charts[id])charts[id].destroy();
     var ds={label:'Occ',data:presence,borderColor:'#3fb950',borderWidth:2,pointRadius:0,fill:false,stepped:true};
     var dO={labels:labels,datasets:[ds]};
-    var xA={ticks:{color:'#888',font:{size:9},maxTicksLimit:6},grid:{color:'#222'}};
+    var xA={grid:{color:'#222'},ticks:{color:'#aaa',font:{size:10},maxTicksLimit:8,autoSkip:false}};
     var yA={min:-0.1,max:1.1,ticks:{stepSize:1,color:'#888',font:{size:9}},grid:{color:'#222'}};
     var sc={x:xA,y:yA};
     var pl={legend:{display:false}};
