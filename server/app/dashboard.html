@@ -32,8 +32,8 @@ h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-
 .tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
 .tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
-.chart-box{height:140px;padding:0 16px 8px;margin-bottom:4px}
-.statusbar{padding:8px 16px 4px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);background:var(--card)}
+.chart-box{height:140px;padding:0 8px 0 0;overflow:hidden}
+
 </style></head><body>
 <div class="app">
 <header><h1>ESP32 Hub<span>IoT Management Panel</span></h1>
@@ -65,7 +65,7 @@ function addCard(id){
   h+='<button onclick="loadHist(\''+id+'\',24)" id="tb24_'+id+'">1d</button>';
   h+='<span class="pct" id="pct_'+id+'"></span></div>';
   h+='<div class="chart-box"><canvas id="chart_'+id+'"></canvas></div>';
-  h+='<div class="statusbar"><span onclick="window.open(\'http://'+ip+'\')">Open Device</span><br><span>OTA Update</span></div></div>';
+  h+='</div>';
   document.getElementById('grid').insertAdjacentHTML('beforeend',h);
 }
 
@@ -116,7 +116,7 @@ async function loadHist(id,h){
       backgroundColor:presence.map(function(v){return v?'#2ea44f66':'transparent';}),
       borderColor:presence.map(function(v){return v?'#2ea44f':'transparent';}),borderWidth:1,borderRadius:2}]},
       options:{responsive:false,animation:false,plugins:{legend:{display:false}},
-        scales:{x:{grid:{display:false},ticks:{color:'#5a6778',font:{size:9},maxTicksLimit:8}},
+        scales:{x:{grid:{display:false},ticks:{color:'#5a6778',font:{size:8},maxTicksLimit:6,maxRotation:0}},
         y:{min:0,max:1,grid:{display:false},
           ticks:{color:'#5a6778',font:{size:9},callback:function(v){return v?'On':'Off';}}}}}};
     charts[id]=new Chart(ctx,cfg);
