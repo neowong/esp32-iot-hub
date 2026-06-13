@@ -32,7 +32,7 @@ h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-
 .tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
 .tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
-.chart-box{height:140px;padding:0 8px 0 0;overflow:hidden}
+.chart-box{height:120px;padding:0 16px 8px}
 
 </style></head><body>
 <div class="app">
@@ -112,14 +112,14 @@ async function loadHist(id,h){
     document.getElementById('pct_'+id).textContent=Math.round(on2/presence.length*100)+'% occupied';
     var ctx=document.getElementById('chart_'+id).getContext('2d');
     if(charts[id])charts[id].destroy();
-    var cfg={type:'bar',data:{labels:labels,datasets:[{data:presence,
-      backgroundColor:presence.map(function(v){return v?'#2ea44f66':'transparent';}),
-      borderColor:presence.map(function(v){return v?'#2ea44f':'transparent';}),borderWidth:1,borderRadius:2}]},
-      options:{responsive:false,animation:false,plugins:{legend:{display:false}},
-        scales:{x:{grid:{display:false},ticks:{color:'#5a6778',font:{size:8},maxTicksLimit:6,maxRotation:0}},
-        y:{min:0,max:1,grid:{display:false},
-          ticks:{color:'#5a6778',font:{size:9},callback:function(v){return v?'On':'Off';}}}}}};
-    charts[id]=new Chart(ctx,cfg);
+    charts[id]=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[
+      {label:'Occupied',data:presence,borderColor:'#3fb950',backgroundColor:'rgba(63,185,80,0.1)',
+       borderWidth:2,pointRadius:0,fill:true,stepped:true}]},
+      options:{responsive:false,animation:false,
+        plugins:{legend:{display:false}},
+        scales:{x:{ticks:{color:'#5a6778',font:{size:9},maxTicksLimit:8},grid:{color:'#21262d'}},
+        y:{min:0,max:1,ticks:{callback:function(v){return v?'On':'Off';},color:'#5a6778',font:{size:9}},
+        grid:{color:'#21262d'}}}});
   }catch(e){}
 }
 
