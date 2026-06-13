@@ -13,7 +13,7 @@ h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-
 .stats{display:flex;gap:16px}.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center;min-width:80px}
 .stat .num{font-size:22px;font-weight:700;color:#e6edf3}.stat .label{font-size:11px;color:var(--muted);margin-top:2px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px}
-.device{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.device{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .device.online{border-color:#2ea44f55}.device.offline{border-color:#da363355;opacity:.6}
 .dev-head{padding:14px 16px 0;display:flex;justify-content:space-between;align-items:center}
 .dev-head .name{font-size:15px;font-weight:600;color:#e6edf3;cursor:pointer}
@@ -32,8 +32,8 @@ h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-
 .tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
 .tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
-.chart-box{height:120px;padding:0 16px 8px}
-.statusbar{padding:8px 16px;display:flex;gap:12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);cursor:pointer;margin-top:auto}
+.chart-box{height:140px;padding:0 16px 8px;margin-bottom:4px}
+.statusbar{padding:8px 16px 4px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);background:var(--card)}
 </style></head><body>
 <div class="app">
 <header><h1>ESP32 Hub<span>IoT Management Panel</span></h1>
@@ -65,7 +65,7 @@ function addCard(id){
   h+='<button onclick="loadHist(\''+id+'\',24)" id="tb24_'+id+'">1d</button>';
   h+='<span class="pct" id="pct_'+id+'"></span></div>';
   h+='<div class="chart-box"><canvas id="chart_'+id+'"></canvas></div>';
-  h+='<div class="statusbar"><span onclick="window.open(\'http://'+ip+'\')">Open Device</span><span onclick="window.open(\'http://'+ip+'/ota\')">OTA Update</span></div></div>';
+  h+='<div class="statusbar"><span onclick="window.open(\'http://'+ip+'\')">Open Device</span><br><span>OTA Update</span></div></div>';
   document.getElementById('grid').insertAdjacentHTML('beforeend',h);
 }
 
