@@ -79,6 +79,7 @@ function makeCard(id){
       <button onclick="loadHistory('${id}',1)" class="active" id="tb1_${id}">1h</button>
       <button onclick="loadHistory('${id}',6)" id="tb6_${id}">6h</button>
       <button onclick="loadHistory('${id}',24)" id="tb24_${id}">1d</button>
+      <span style="float:right;color:#8b949e;font-size:11px;padding:3px 0" id="pct_${id}"></span>
     </div>
     <canvas id="chart_${id}"></canvas>
   </div>`;
@@ -137,7 +138,7 @@ async function loadHistory(id, hours){
     let mvData = rows.map(r=>r.mv);
     let seData = rows.map(r=>r.se);
     let litData = rows.map(r=>r.lit);
-    let presenceData = rows.map(r=>r.st>0?100:0);
+    let presenceData = rows.map(r=>r.st>0?1:0);
 
     let ctx = document.getElementById('chart_'+id).getContext('2d');
     if(charts[id]) charts[id].destroy();
@@ -149,20 +150,25 @@ async function loadHistory(id, hours){
         datasets:[
           {label:'运动',data:mvData,borderColor:'#f78166',borderWidth:1,pointRadius:0,fill:false},
           {label:'微动',data:seData,borderColor:'#58a6ff',borderWidth:1,pointRadius:0,fill:false},
-          {label:'有人',data:presenceData,borderColor:'#3fb950',borderWidth:2,pointRadius:0,fill:false,stepped:true},
+          {label:'有人',data:presenceData,borderColor:'#3fb950',backgroundColor:'rgba(63,185,80,0.15)',borderWidth:2,pointRadius:0,fill:true,stepped:true},
         ]
       },
       options:{
         responsive:true,
         animation:false,
-        plugins:{legend:{labels:{color:'#8b949e',font:{size:10},boxWidth:12}}},
+        plugins:{legend:{display:false}},
         scales:{
           x:{ticks:{color:'#484f58',font:{size:9},maxTicksLimit:6},grid:{color:'#21262d'}},
-          y:{min:0,max:100,ticks:{color:'#484f58',font:{size:9}},grid:{color:'#21262d'}}
+          y:{min:0,max:1,ticks:{color:'#484f58',font:{size:9}},grid:{color:'#21262d'}}
         }
       }
     });
-  }catch(e){console.error(e)}
+    // 计算有人占比
+      let on = presenceData.filter(function(v){return v}).length;
+      let pct = presenceData.length ? Math.round(on/presenceData.length*100) : 0;
+      let el = document.getElementById('pct_'+id);
+      if(el) el.textContent = '有人 '+pct+'%';
+    }catch(e){console.error(e)}
 }
 
 
