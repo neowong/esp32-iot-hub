@@ -408,6 +408,8 @@ void app_main(void)
 
         httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
         hc.max_uri_handlers = 7; hc.server_port = 80; hc.stack_size = 8192;
+        hc.lru_purge_enable = true;      // 自动踢掉不活跃连接
+        hc.max_open_sockets = 4;         // 限制并发连接数
         httpd_handle_t hs = NULL; httpd_start(&hs, &hc);
         httpd_register_uri_handler(hs, &(httpd_uri_t){.uri="/",.method=HTTP_GET,.handler=root_page});
         httpd_register_uri_handler(hs, &(httpd_uri_t){.uri="/api",.method=HTTP_GET,.handler=api_data});
