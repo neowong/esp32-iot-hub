@@ -41,10 +41,9 @@ h1 span{color:var(--muted);font-size:14px;font-weight:400;margin-left:8px}
 .tabs button{background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px}
 .tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
 .tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
-canvas{margin:0 0 -4px}
-.statusbar{padding:6px 16px;display:flex;gap:12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);cursor:pointer}
-.statusbar span:hover{color:var(--accent)}
-.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.chart-wrap{height:120px;padding:0 16px 8px}
+.statusbar{padding:6px 16px;display:flex;gap:12px;font-size:10px;color:var(--muted);border-top:1px solid var(--border)}
+.statusbar span{cursor:pointer}.statusbar span:hover{color:var(--accent)}
 </style></head><body>
 <div class="app">
 <header>
@@ -56,91 +55,98 @@ canvas{margin:0 0 -4px}
   </div>
 </header>
 <div class="grid" id="grid"></div>
-<div class="empty" id="empty" style="display:none">📡 No devices connected. Waiting for MQTT data...</div>
+<div class="empty" id="empty" style="display:none">No devices connected. Waiting for MQTT data...</div>
 </div>
-
 <script>
-const deviceNames=JSON.parse(localStorage.getItem('esp_names')||'{}');
-const deviceIPs=JSON.parse(localStorage.getItem('esp_ips')||'{}');
-const charts={};let knownDevices={};
+var deviceNames=JSON.parse(localStorage.getItem('esp_names')||'{}');
+var deviceIPs=JSON.parse(localStorage.getItem('esp_ips')||'{}');
+var charts={};
+var addedCards={};
+
 function getName(id){return deviceNames[id]||id}
 function getIP(id){return deviceIPs[id]||''}
-function makeCard(id){
-  let dn=getName(id),dip=getIP(id)||id;
-  return '<div class="device online" id="card_'+id+'"><div class="dev-head">'
-  +'<span class="name" onclick="editName(\''+id+'\')">📡 '+dn+'</span>'
-  +'<span class="meta" onclick="editIP(\''+id+'\')">'+dip+' ✎</span></div>'
-  +'<div class="presence"><span class="dot unknown" id="dot_'+id+'"></span><span class="txt" id="txt_'+id+'">--</span></div>'
-  +'<div class="gauges">'
-  +'<div class="gauge"><div class="label"><span>Motion</span><span id="gmv_'+id+'">0</span></div><div class="bar"><div class="mv" id="bm_'+id+'" style="width:0%"></div></div></div>'
-  +'<div class="gauge"><div class="label"><span>Static</span><span id="gse_'+id+'">0</span></div><div class="bar"><div class="st" id="bs_'+id+'" style="width:0%"></div></div></div>'
-  +'</div><div class="metrics">'
-  +'<div class="metric"><div class="val" id="md_'+id+'">--</div><div class="lbl">Distance</div></div>'
-  +'<div class="metric"><div class="val" id="ml_'+id+'">--</div><div class="lbl">Light</div></div>'
-  +'<div class="metric"><div class="val" id="mh_'+id+'">--</div><div class="lbl">Heap</div></div>'
-  +'</div><div class="tabs">'
-  +'<button onclick="loadHistory(\''+id+'\',1)" class="active" id="tb1_'+id+'">1h</button>'
-  +'<button onclick="loadHistory(\''+id+'\',6)" id="tb6_'+id+'">6h</button>'
-  +'<button onclick="loadHistory(\''+id+'\',24)" id="tb24_'+id+'">1d</button>'
-  +'<span class="pct" id="pct_'+id+'"></span>'
-  +'</div><canvas id="chart_'+id+'" height="120"></canvas>'
-  +'<div class="statusbar">'
-  +'<span onclick="window.open(\'http://'+dip+'\')">🔗 Open</span>'
-  +'<span onclick="window.open(\'http://'+dip+'/ota\')">⬆ OTA</span></div></div>';
+
+function appendCard(id){
+  var dn=getName(id), dip=getIP(id)||id;
+  var d=document.createElement('div');
+  d.className='device online';d.id='card_'+id;
+  d.innerHTML='<div class="dev-head">'
+    +'<span class="name" onclick="editName(\''+id+'\')">📡 '+dn+'</span>'
+    +'<span class="meta" onclick="editIP(\''+id+'\')">'+dip+' ✎</span></div>'
+    +'<div class="presence"><span class="dot unknown" id="dot_'+id+'"></span><span class="txt" id="txt_'+id+'">--</span></div>'
+    +'<div class="gauges">'
+    +'<div class="gauge"><div class="label"><span>Motion</span><span id="gmv_'+id+'">0</span></div><div class="bar"><div class="mv" id="bm_'+id+'" style="width:0%"></div></div></div>'
+    +'<div class="gauge"><div class="label"><span>Static</span><span id="gse_'+id+'">0</span></div><div class="bar"><div class="st" id="bs_'+id+'" style="width:0%"></div></div></div>'
+    +'</div><div class="metrics">'
+    +'<div class="metric"><div class="val" id="md_'+id+'">--</div><div class="lbl">Distance</div></div>'
+    +'<div class="metric"><div class="val" id="ml_'+id+'">--</div><div class="lbl">Light</div></div>'
+    +'<div class="metric"><div class="val" id="mh_'+id+'">--</div><div class="lbl">Heap</div></div>'
+    +'</div><div class="tabs">'
+    +'<button onclick="loadHistory(\''+id+'\',1)" class="active" id="tb1_'+id+'">1h</button>'
+    +'<button onclick="loadHistory(\''+id+'\',6)" id="tb6_'+id+'">6h</button>'
+    +'<button onclick="loadHistory(\''+id+'\',24)" id="tb24_'+id+'">1d</button>'
+    +'<span class="pct" id="pct_'+id+'"></span>'
+    +'</div><div class="chart-wrap"><canvas id="chart_'+id+'"></canvas></div>'
+    +'<div class="statusbar">'
+    +'<span onclick="window.open(\'http://'+dip+'\')">🔗 Open</span>'
+    +'<span onclick="window.open(\'http://'+dip+'/ota\')">⬆ OTA</span></div>';
+  document.getElementById('grid').appendChild(d);
 }
+
 function editName(id){
-  let cur=deviceNames[id]||id;
-  let n=prompt('Rename:',cur===id?'':cur);
-  if(n!==null){let nn=n||id;deviceNames[id]=nn;localStorage.setItem('esp_names',JSON.stringify(deviceNames));document.querySelector('#card_'+id+' .name').textContent='📡 '+nn;}
+  var cur=deviceNames[id]||id;
+  var n=prompt('Rename:',cur===id?'':cur);
+  if(n!==null){var nn=n||id;deviceNames[id]=nn;localStorage.setItem('esp_names',JSON.stringify(deviceNames));var el=document.querySelector('#card_'+id+' .name');if(el)el.textContent='📡 '+nn;}
 }
 function editIP(id){
-  let cur=deviceIPs[id]||'';
-  let n=prompt('IP:',cur);
-  if(n!==null){deviceIPs[id]=n;localStorage.setItem('esp_ips',JSON.stringify(deviceIPs));document.querySelector('#card_'+id+' .meta').textContent=(n||id)+' ✎';}
+  var cur=deviceIPs[id]||'';
+  var n=prompt('IP:',cur);
+  if(n!==null){deviceIPs[id]=n;localStorage.setItem('esp_ips',JSON.stringify(deviceIPs));var el=document.querySelector('#card_'+id+' .meta');if(el)el.textContent=(n||id)+' ✎';}
 }
 async function poll(){
   try{
-    let r=await fetch('/api/devices');let devs=await r.json();
-    let ids=Object.keys(devs),now=Date.now()/1000,online=0,occupied=0;
-    for(let[id,d] of Object.entries(devs)){
-      if(!knownDevices[id]){knownDevices[id]=true;document.getElementById('grid').innerHTML+=makeCard(id);setTimeout(()=>loadHistory(id,1),500);}
+    var r=await fetch('/api/devices');var devs=await r.json();
+    var ids=Object.keys(devs),now=Date.now()/1000,online=0,occupied=0;
+    for(var id in devs){
+      var d=devs[id];
+      if(!addedCards[id]){addedCards[id]=true;appendCard(id);setTimeout(function(){loadHistory(id,1);},500);}
       if(now-d.ts<30)online++;if(d.st>0)occupied++;
-      let card=document.getElementById('card_'+id);if(!card)continue;
+      var card=document.getElementById('card_'+id);if(!card)continue;
       card.className='device '+(now-d.ts<30?'online':'offline');
-      let dot=document.getElementById('dot_'+id);dot.className='dot '+(d.st>0?'on':'off');
+      document.getElementById('dot_'+id).className='dot '+(d.st>0?'on':'off');
       document.getElementById('txt_'+id).textContent=d.st>0?'Occupied':'Vacant';
       document.getElementById('gmv_'+id).textContent=d.mv;document.getElementById('gse_'+id).textContent=d.se;
       document.getElementById('bm_'+id).style.width=Math.min(d.mv,100)+'%';
       document.getElementById('bs_'+id).style.width=Math.min(d.se,100)+'%';
-      document.getElementById('md_'+id).textContent=d.dst+'cm';
-      document.getElementById('ml_'+id).textContent=d.lit;
+      document.getElementById('md_'+id).textContent=d.dst+'cm';document.getElementById('ml_'+id).textContent=d.lit;
       document.getElementById('mh_'+id).textContent=d.heap+'K';
     }
-    document.getElementById('s_total').textContent=ids.length;
-    document.getElementById('s_online').textContent=online;
+    document.getElementById('s_total').textContent=ids.length;document.getElementById('s_online').textContent=online;
     document.getElementById('s_occupied').textContent=occupied;
-    document.getElementById('empty').style.display=ids.length?'none':'';
+    document.getElementById('empty').style.display=ids.length?'none':'block';
   }catch(e){}
 }
 async function loadHistory(id,hours){
-  [1,6,24].forEach(h=>{let b=document.getElementById('tb'+h+'_'+id);if(b)b.className=h===hours?'active':'';});
+  [1,6,24].forEach(function(h){var b=document.getElementById('tb'+h+'_'+id);if(b)b.className=h===hours?'active':'';});
   try{
-    let r=await fetch('/api/history?device='+id+'&hours='+hours);
-    let rows=await r.json();if(!rows.length)return;
-    let labels=rows.map(r=>new Date(r.ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
-    let presence=rows.map(r=>r.st>0?1:0);
-    let on=presence.filter(v=>v).length,pct=presence.length?Math.round(on/presence.length*100):0;
-    document.getElementById('pct_'+id).textContent=pct+'% occupied';
-    let ctx=document.getElementById('chart_'+id).getContext('2d');
+    var r=await fetch('/api/history?device='+id+'&hours='+hours);var rows=await r.json();
+    if(!rows.length)return;
+    var labels=rows.map(function(r){return new Date(r.ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});});
+    var presence=rows.map(function(r){return r.st>0?1:0;});
+    var on=presence.filter(function(v){return v;}).length;
+    var pct=presence.length?Math.round(on/presence.length*100):0;
+    var el=document.getElementById('pct_'+id);if(el)el.textContent=pct+'% occupied';
+    var ctx=document.getElementById('chart_'+id).getContext('2d');
     if(charts[id])charts[id].destroy();
-    charts[id]=new Chart(ctx,{type:'bar',
-      data:{labels,datasets:[{label:'Occupied',data:presence,
-        backgroundColor:presence.map(v=>v?'#2ea44f66':'transparent'),
-        borderColor:presence.map(v=>v?'#2ea44f':'transparent'),borderWidth:1,borderRadius:2}]},
-      options:{responsive:true,animation:false,maintainAspectRatio:false,
+    charts[id]=new Chart(ctx,{type:'bar',data:{labels:labels,datasets:[{
+      label:'Occupied',data:presence,
+      backgroundColor:presence.map(function(v){return v?'#2ea44f66':'transparent';}),
+      borderColor:presence.map(function(v){return v?'#2ea44f':'transparent';}),
+      borderWidth:1,borderRadius:2}]},
+      options:{responsive:false,animation:false,maintainAspectRatio:false,
         plugins:{legend:{display:false}},
         scales:{x:{ticks:{color:'#5a6778',font:{size:9},maxTicksLimit:8},grid:{display:false}},
-        y:{min:0,max:1,ticks:{callback:v=>v?'On':'Off',color:'#5a6778',font:{size:9}},grid:{display:false}}}}});
+        y:{min:0,max:1,ticks:{callback:function(v){return v?'On':'Off';},color:'#5a6778',font:{size:9}},grid:{display:false}}}});
   }catch(e){}
 }
 setInterval(poll,1000);poll();
