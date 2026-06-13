@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ESP32 Hub</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial;background:#0d1117;color:#c9d1d9;padding:16px}
+h1{color:#58a6ff;margin-bottom:4px;font-size:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-top:12px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px}
+.card.online{border-color:#238636}.card.offline{border-color:#da3633;opacity:.5}
+.card h3{font-size:14px;margin-bottom:8px;color:#58a6ff}
+.presence{font-size:20px;text-align:center;padding:6px}
+.row{display:flex;justify-content:space-between;padding:4px 0;font-size:12px}
+.l{color:#8b949e}.v{color:#58a6ff}
+.bar{height:5px;border-radius:2px;overflow:hidden;background:#21262d;margin:2px 0}
+.bar div{height:100%;transition:width .3s}
+.mv-bar div{background:#f78166}.st-bar div{background:#58a6ff}
+canvas{margin-top:8px;max-height:200px}
+.tabs{display:flex;gap:4px;margin:8px 0}
+.tabs button{padding:3px 10px;border:1px solid #30363d;background:#21262d;color:#8b949e;
+  border-radius:4px;cursor:pointer;font-size:11px}
+.tabs button.active{background:#1f6feb;color:#fff;border-color:#1f6feb}
+.offline-msg{text-align:center;color:#8b949e;padding:20px;font-size:13px}
+.summary{color:#8b949e;font-size:11px;margin:8px 0}
+</style></head><body>
+<h1>ESP32 Hub</h1>
+<div class="summary">
+  <span id="devcount">0</span> 设备 |
+  <input id="newip" placeholder="添加 IP" style="width:140px;padding:3px 6px;border-radius:3px;border:1px solid #30363d;background:#0d1117;color:#fff;font-size:11px">
+  <button onclick="manage('add')" style="padding:3px 8px;font-size:11px;background:#238636;border:none;color:#fff;border-radius:3px;cursor:pointer">+</button>
+  <button onclick="manage('scan')" style="padding:3px 8px;font-size:11px;background:#21262d;border:1px solid #30363d;color:#fff;border-radius:3px;cursor:pointer">🔍</button>
+  <span id="scanmsg" style="font-size:11px;color:#8b949e"></span>
+</div>
+<div class="grid" id="grid"></div>
+
+<script>
+const deviceNames = JSON.parse(localStorage.getItem('esp_names')||'{}');
+const deviceIPs = JSON.parse(localStorage.getItem('esp_ips')||'{}');
+const charts = {};
+let knownDevices = {};
+
+function getName(id){
+  return deviceNames[id] || id;
+}
+function getIP(id){
+  return deviceIPs[id] || '';
+}
+
+function setDeviceName(id, name){
+  if(name) deviceNames[id] = name;
+  else delete deviceNames[id];
+  localStorage.setItem('esp_names', JSON.stringify(deviceNames));
+}
+function setDeviceIP(id, ip){
+  if(ip) deviceIPs[id] = ip;
+  else delete deviceIPs[id];
+  localStorage.setItem('esp_ips', JSON.stringify(deviceIPs));
+}
+
+
+function makeCard(id){
+  return `<div class="card" id="card_${id}">
+    <h3>
+      <span class="devname" id="dname_${id}" title="点击修改名称" onclick="editName('${id}')">📡 ${getName(id)}</span>
+      <span style="font-size:10px;color:#8b949e;cursor:pointer" onclick="editIP('${id}')" title="点击修改IP">
+        <span id="dip_${id}">${getIP(id)||id}</span> ✎
+      </span>
+    </h3>
+    <div class="presence" id="pres_${id}">--</div>
+    <div class="row"><span class="l">运动</span><span class="v" id="mv_${id}">0</span></div>
+    <div class="bar mv-bar"><div id="barm_${id}" style="width:0%"></div></div>
+    <div class="row"><span class="l">微动</span><span class="v" id="se_${id}">0</span></div>
+    <div class="bar st-bar"><div id="bars_${id}" style="width:0%"></div></div>
+    <div class="row"><span class="l">距离</span><span class="v" id="dst_${id}">--</span>
+      <span class="l">光照</span><span class="v" id="lit_${id}">--</span></div>
+    <div class="tabs">
+      <button onclick="loadHistory('${id}',1)" class="active" id="tb1_${id}">1h</button>
+      <button onclick="loadHistory('${id}',6)" id="tb6_${id}">6h</button>
+      <button onclick="loadHistory('${id}',24)" id="tb24_${id}">1d</button>
+    </div>
+    <canvas id="chart_${id}"></canvas>
+  </div>`;
+}
+
+async function poll(){
+  try{
+    let r = await fetch('/api/devices');
+    let devs = await r.json();
+    document.getElementById('devcount').textContent = Object.keys(devs).length;
+
+    for(let[id, d] of Object.entries(devs)){
+      if(!knownDevices[id]){
+        knownDevices[id] = true;
+        document.getElementById('grid').innerHTML += makeCard(id);
+        setTimeout(()=>loadHistory(id,1), 500);
+      }
+      let card = document.getElementById('card_'+id);
+      if(card) card.className = 'card online';
+      document.getElementById('dname_'+id).textContent = '📡 ' + (d.name || getName(id));
+      document.getElementById('dip_'+id).textContent = getIP(id) || (d.name||id);
+      let p = document.getElementById('pres_'+id);
+      p.textContent = d.st>0 ? '🟢 有人' : '🔴 无人';
+      document.getElementById('mv_'+id).textContent = d.mv;
+      document.getElementById('se_'+id).textContent = d.se;
+      document.getElementById('barm_'+id).style.width = Math.min(d.mv,100)+'%';
+      document.getElementById('bars_'+id).style.width = Math.min(d.se,100)+'%';
+      document.getElementById('dst_'+id).textContent = d.dst+'cm';
+      document.getElementById('lit_'+id).textContent = d.lit;
+    }
+
+    // Check for offline devices
+    let now = Date.now()/1000;
+    for(let[id, d] of Object.entries(devs)){
+      if(now - d.ts > 30){
+        let card = document.getElementById('card_'+id);
+        if(card) card.className = 'card offline';
+      }
+    }
+  }catch(e){}
+}
+
+async function loadHistory(id, hours){
+  // Update active tab
+  [1,6,24].forEach(h=>{
+    let btn = document.getElementById('tb'+h+'_'+id);
+    if(btn) btn.className = h===hours ? 'active' : '';
+  });
+
+  try{
+    let r = await fetch('/api/history?device='+id+'&hours='+hours);
+    let rows = await r.json();
+    if(!rows.length) return;
+
+    let labels = rows.map(r=>new Date(r.ts*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}));
+    let mvData = rows.map(r=>r.mv);
+    let seData = rows.map(r=>r.se);
+    let litData = rows.map(r=>r.lit);
+    let presenceData = rows.map(r=>r.st>0?100:0);
+
+    let ctx = document.getElementById('chart_'+id).getContext('2d');
+    if(charts[id]) charts[id].destroy();
+
+    charts[id] = new Chart(ctx, {
+      type:'line',
+      data:{
+        labels,
+        datasets:[
+          {label:'运动',data:mvData,borderColor:'#f78166',borderWidth:1,pointRadius:0,fill:false},
+          {label:'微动',data:seData,borderColor:'#58a6ff',borderWidth:1,pointRadius:0,fill:false},
+          {label:'有人',data:presenceData,borderColor:'#3fb950',borderWidth:2,pointRadius:0,fill:false,stepped:true},
+        ]
+      },
+      options:{
+        responsive:true,
+        animation:false,
+        plugins:{legend:{labels:{color:'#8b949e',font:{size:10},boxWidth:12}}},
+        scales:{
+          x:{ticks:{color:'#484f58',font:{size:9},maxTicksLimit:6},grid:{color:'#21262d'}},
+          y:{min:0,max:100,ticks:{color:'#484f58',font:{size:9}},grid:{color:'#21262d'}}
+        }
+      }
+    });
+  }catch(e){console.error(e)}
+}
+
+
+async function manage(action){
+  let ip = document.getElementById('newip').value.trim();
+  if(action==='add' && ip){
+    await fetch('/api/devices/manage',{method:'POST',body:JSON.stringify({action:'add',ip})});
+    document.getElementById('newip').value='';
+    location.reload();
+  }else if(action==='scan'){
+    document.getElementById('scanmsg').textContent='扫描中...';
+    await fetch('/api/devices/manage',{method:'POST',body:JSON.stringify({action:'scan'})});
+    document.getElementById('scanmsg').textContent='完成!';
+    setTimeout(()=>location.reload(),2000);
+  }
+}
+
+
+function editName(id){
+  let cur = deviceNames[id] || id;
+  let n = prompt('设备名称:', cur);
+  if(n && n!==cur){ setDeviceName(id, n); document.getElementById('dname_'+id).textContent='📡 '+n; }
+}
+function editIP(id){
+  let cur = deviceIPs[id] || '';
+  let n = prompt('设备 IP (用于OTA/直连):', cur);
+  setDeviceIP(id, n);
+  document.getElementById('dip_'+id).textContent = n||id;
+}
+
+setInterval(poll, 1000);
+poll();
+
+</script>
+</body></html>

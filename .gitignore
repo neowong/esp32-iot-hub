@@ -1,0 +1,11 @@
+build/
+sdkconfig
+sdkconfig.old
+*.o
+*.d
+dependencies.lock
+managed_components/
+server/data/
+*.swp
+*.tar.gz
+/tmp/

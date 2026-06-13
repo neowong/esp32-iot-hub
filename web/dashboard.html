@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ESP32 管理面板</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0d1117;color:#c9d1d9;padding:16px}
+h1{color:#58a6ff;margin-bottom:4px;font-size:22px}
+.sub{color:#8b949e;font-size:12px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px}
+.card.online{border-color:#238636}.card.offline{border-color:#da3633;opacity:.5}
+.card h3{font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.card h3 .name{color:#58a6ff}.card h3 .ip{color:#8b949e;font-size:11px}
+.presence{font-size:22px;text-align:center;padding:10px 0}
+.bars{margin:8px 0}
+.bar-row{display:flex;align-items:center;gap:6px;margin:4px 0;font-size:12px}
+.bar-row .label{color:#8b949e;width:40px;text-align:right}
+.bar-row .bar{flex:1;height:6px;border-radius:3px;overflow:hidden;background:#21262d}
+.bar-row .bar div{height:100%;transition:width .3s}
+.bar-row .val{color:#c9d1d9;width:30px}
+.mv-bar div{background:#f78166}.st-bar div{background:#58a6ff}
+.stats{display:flex;justify-content:space-around;font-size:12px;color:#8b949e;margin-top:8px}
+.controls{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.controls button{padding:4px 10px;border-radius:4px;border:1px solid #30363d;
+    background:#21262d;color:#c9d1d9;cursor:pointer;font-size:11px}
+.controls button:hover{background:#30363d}
+.controls button.ota{background:#1a3a5c;border-color:#58a6ff;color:#58a6ff}
+.ota-panel{display:none;margin-top:8px;padding:8px;background:#0d1117;border-radius:4px}
+.ota-panel input{font-size:12px;color:#c9d1d9}
+.ota-panel .msg{margin-top:4px;font-size:11px}
+.add-device{margin-top:12px;display:flex;gap:8px}
+.add-device input{padding:6px 10px;border-radius:4px;border:1px solid #30363d;
+    background:#0d1117;color:#c9d1d9;font-size:12px;flex:1}
+.add-device button{padding:6px 16px;border-radius:4px;background:#238636;color:#fff;
+    border:none;cursor:pointer;font-size:12px}
+.device-list{font-size:11px;color:#8b949e;margin-top:8px}
+.device-list span{background:#21262d;padding:2px 6px;border-radius:3px;margin:2px;
+    display:inline-block;cursor:pointer}
+.device-list span:hover{background:#30363d;text-decoration:line-through}
+</style>
+</head>
+<body>
+<h1>ESP32 管理面板</h1>
+<div class="sub">设备列表点击可移除 | 自动刷新 1s | 本地存储设备 IP</div>
+<div class="grid" id="grid"></div>
+<div class="add-device">
+  <input id="new_ip" placeholder="输入 ESP32 IP (如 192.168.31.219)" />
+  <button onclick="addDevice()">+ 添加设备</button>
+  <button onclick="scan()" style="background:#30363d">扫描</button>
+</div>
+<div class="device-list" id="list"></div>
+
+<script>
+let devices = JSON.parse(localStorage.getItem('esp32_devices')||'[]');
+if(!devices.length) devices=['192.168.31.219'];
+// 确保是数组且去重
+devices = [...new Set(devices)];
+save();
+
+function save(){localStorage.setItem('esp32_devices',JSON.stringify(devices));renderList();}
+
+function addDevice(ip){
+  ip = ip || document.getElementById('new_ip').value.trim();
+  if(!ip) return;
+  if(!devices.includes(ip)){devices.push(ip);save();}
+  document.getElementById('new_ip').value='';
+  updateAll();
+}
+
+function removeDevice(ip){
+  devices = devices.filter(d=>d!==ip);
+  save();
+  updateAll();
+}
+
+function renderList(){
+  document.getElementById('list').innerHTML = devices.map(d=>
+    '<span onclick="removeDevice(\''+d+'\')" title="点击移除">'+d+' ×</span>'
+  ).join('');
+}
+
+function scan(){
+  // 简单扫描 192.168.31.x 网段
+  let base = '192.168.31.';
+  for(let i=1;i<=255;i++){
+    let ip=base+i;
+    fetch('http://'+ip+'/data',{signal:AbortSignal.timeout(500)})
+      .then(r=>r.json()).then(d=>{
+        if(d.ok!==undefined && !devices.includes(ip)){devices.push(ip);save();updateAll();}
+      }).catch(()=>{});
+  }
+}
+
+function otaUpload(ip){
+  let f = document.getElementById('ota_file_'+ip.replace(/\./g,'_'));
+  let file = f.files[0];
+  if(!file) return;
+  let xhr = new XMLHttpRequest();
+  xhr.open('POST','http://'+ip+'/update',true);
+  xhr.upload.onprogress = function(e){
+    if(e.lengthComputable){
+      let pct = Math.round(e.loaded/e.total*100);
+      document.getElementById('ota_msg_'+ip.replace(/\./g,'_')).textContent = '上传 '+pct+'%';
+    }
+  };
+  xhr.onload = function(){
+    let m=document.getElementById('ota_msg_'+ip.replace(/\./g,'_'));
+    if(xhr.status==200){m.textContent='✅ 上传成功,设备将在3秒后重启...';m.style.color='#3fb950';}
+    else{m.textContent='❌ 失败: '+xhr.status;m.style.color='#f85149';}
+  };
+  xhr.onerror = function(){
+    document.getElementById('ota_msg_'+ip.replace(/\./g,'_')).textContent='❌ 网络错误';
+  };
+  xhr.send(file);
+}
+
+function toggleOta(ip){
+  let p = document.getElementById('otap_'+ip.replace(/\./g,'_'));
+  p.style.display = p.style.display=='block'?'none':'block';
+}
+
+let failCount = {};  // track consecutive failures per device
+
+function buildCards(){
+  let html = '';
+  devices.forEach(ip=>{
+    let id = ip.replace(/\./g,'_');
+    html += '<div class="card online" id="card_'+id+'">'
+      +'<h3><span class="name">📡 '+ip+'</span><span class="ip" id="heap_'+id+'">--KB</span></h3>'
+      +'<div class="presence" id="pres_'+id+'">--</div>'
+      +'<div class="bars">'
+      +'<div class="bar-row"><span class="label">运动</span>'
+      +'<span class="bar mv-bar"><div id="bm_'+id+'" style="width:0%"></div></span>'
+      +'<span class="val" id="mv_'+id+'">0</span></div>'
+      +'<div class="bar-row"><span class="label">微动</span>'
+      +'<span class="bar st-bar"><div id="bs_'+id+'" style="width:0%"></div></span>'
+      +'<span class="val" id="se_'+id+'">0</span></div>'
+      +'</div>'
+      +'<div class="stats">'
+      +'<span id="dst_'+id+'">--</span>'
+      +'<span id="lit_'+id+'">--</span>'
+      +'</div>'
+      +'<div class="controls">'
+      +'<button onclick="window.open(\'http://'+ip+'\')">🔗 打开</button>'
+      +'<button class="ota" onclick="toggleOta(\''+ip+'\')">⬆ OTA</button>'
+      +'</div>'
+      +'<div class="ota-panel" id="otap_'+id+'">'
+      +'<input type="file" id="ota_file_'+id+'" accept=".bin" style="font-size:11px">'
+      +'<button onclick="otaUpload(\''+ip+'\')" style="padding:4px 10px;margin-left:6px;font-size:11px">上传</button>'
+      +'<div class="msg" id="ota_msg_'+id+'"></div>'
+      +'</div></div>';
+    failCount[ip] = 0;
+  });
+  document.getElementById('grid').innerHTML = html;
+}
+
+function poll(){
+  devices.forEach(ip=>{
+    let id = ip.replace(/\./g,'_');
+    fetch('http://'+ip+'/data',{signal:AbortSignal.timeout(2000)})
+      .then(r=>r.json()).then(d=>{
+        failCount[ip] = 0;
+        let card = document.getElementById('card_'+id);
+        if(card) card.className = 'card online';
+        let p = document.getElementById('pres_'+id);
+        if(!d.ok) p.textContent = '⚪';
+        else if(d.st>0) p.textContent = '🟢 有人';
+        else p.textContent = '🔴 无人';
+        document.getElementById('mv_'+id).textContent = d.mv;
+        document.getElementById('se_'+id).textContent = d.se;
+        document.getElementById('bm_'+id).style.width = Math.min(d.mv,100)+'%';
+        document.getElementById('bs_'+id).style.width = Math.min(d.se,100)+'%';
+        document.getElementById('dst_'+id).textContent = d.dst+'cm';
+        document.getElementById('lit_'+id).textContent = d.lit;
+        document.getElementById('heap_'+id).textContent = d.heap+'KB';
+      }).catch(()=>{
+        failCount[ip] = (failCount[ip]||0) + 1;
+        if(failCount[ip] >= 5){  // 5次连续失败才标离线
+          let card = document.getElementById('card_'+id);
+          if(card) card.className = 'card offline';
+          let p = document.getElementById('pres_'+id);
+          if(p) p.textContent = '⚪ 离线';
+        }
+      });
+  });
+}
+
+buildCards();
+poll();
+setInterval(poll,500);
+
+renderList();
+</script>
+</body>
+</html>
