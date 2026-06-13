@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ESP32 Hub</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
 <style>
 :root{--bg:#0b0f14;--card:#131820;--border:#1e2733;--text:#a8b4c2;--muted:#5a6778;--accent:#4f9cf7;--green:#2ea44f;--red:#da3633;--orange:#f0883e}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -34,7 +34,7 @@ h1{font-size:24px;font-weight:600;color:#e6edf3}h1 span{color:var(--muted);font-
 .tabs .pct{margin-left:auto;font-size:11px;color:var(--accent);font-weight:600}
 .chart-box{height:120px;padding:0 16px 8px}
 
-</style></head><body>
+.occ-bar{height:20px;border-radius:4px;background:#1e2733;overflow:hidden;margin:8px 0 4px}.occ-fill{height:100%;width:0;background:linear-gradient(90deg,#2ea44f,#3fb950);transition:width .5s}.occ-label{font-size:12px;color:var(--muted);text-align:center}</style></head><body>
 <div class="app">
 <header><h1>ESP32 Hub<span>IoT Management Panel</span></h1>
 <div class="stats"><div class="stat"><div class="num" id="s_total">0</div><div class="label">Total</div></div>
@@ -64,7 +64,7 @@ function addCard(id){
   h+='<button onclick="loadHist(\''+id+'\',6)" id="tb6_'+id+'">6h</button>';
   h+='<button onclick="loadHist(\''+id+'\',24)" id="tb24_'+id+'">1d</button>';
   h+='<span class="pct" id="pct_'+id+'"></span></div>';
-  h+='<div class="chart-box"><canvas id="chart_'+id+'"></canvas></div>';
+  h+='<div class="chart-box"><div class="occ-bar"><div class="occ-fill" id="occ_'+id+'"></div></div><div class="occ-label" id="occl_'+id+'">--</div></div>';
   h+='</div>';
   document.getElementById('grid').insertAdjacentHTML('beforeend',h);
 }
@@ -84,7 +84,7 @@ async function update(){
     var ids=Object.keys(devs), now=Date.now()/1000, on=0, occ=0;
     for(var id in devs){
       var d=devs[id];
-      if(!added[id]){added[id]=true;addCard(id);setTimeout(function(){loadHist(id,1);},500);}
+      if(!added[id]){added[id]=true;addCard(id);loadHist(id,1);}
       if(now-d.ts<30)on++;if(d.st>0)occ++;
       var c=document.getElementById('card_'+id);if(!c)continue;
       c.className='device '+(now-d.ts<30?'online':'offline');
@@ -106,20 +106,12 @@ async function loadHist(id,h){
   try{
     var r=await fetch('/api/history?device='+id+'&hours='+h);var rows=await r.json();
     if(!rows.length)return;
-    var labels=rows.map(function(r){return new Date(r.ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});});
     var presence=rows.map(function(r){return r.st>0?1:0;});
     var on2=presence.filter(function(v){return v;}).length;
-    document.getElementById('pct_'+id).textContent=Math.round(on2/presence.length*100)+'% occupied';
-    var ctx=document.getElementById('chart_'+id).getContext('2d');
-    if(charts[id])charts[id].destroy();
-    charts[id]=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[
-      {label:'Occupied',data:presence,borderColor:'#3fb950',backgroundColor:'rgba(63,185,80,0.1)',
-       borderWidth:2,pointRadius:0,fill:true,stepped:true}]},
-      options:{responsive:false,animation:false,
-        plugins:{legend:{display:false}},
-        scales:{x:{ticks:{color:'#5a6778',font:{size:9},maxTicksLimit:8},grid:{color:'#21262d'}},
-        y:{min:0,max:1,ticks:{callback:function(v){return v?'On':'Off';},color:'#5a6778',font:{size:9}},
-        grid:{color:'#21262d'}}}});
+    var pct=Math.round(on2/presence.length*100);
+    document.getElementById('pct_'+id).textContent=pct+'% occupied';
+    document.getElementById('occ_'+id).style.width=pct+'%';
+    document.getElementById('occl_'+id).textContent=pct+'% of the last '+h+'h';
   }catch(e){}
 }
 
